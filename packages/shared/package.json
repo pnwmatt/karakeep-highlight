@@ -9,11 +9,11 @@
     "glob": "^11.0.0",
     "html-to-text": "^9.0.5",
     "js-tiktoken": "^1.0.20",
-    "nodemailer": "^7.0.4",
+    "nodemailer": "^9.0.1",
     "ollama": "^0.5.14",
     "openai": "^6.34.0",
     "typescript-parsec": "^0.3.4",
-    "undici": "^6.23.0",
+    "undici": "^6.27.0",
     "winston": "^3.11.0",
     "zod": "^4.0.0"
   },
@@ -22,7 +22,7 @@
     "@types/html-to-text": "^9.0.4",
     "@types/nodemailer": "^6.4.17",
     "vite-tsconfig-paths": "^6.1.1",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.6"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
