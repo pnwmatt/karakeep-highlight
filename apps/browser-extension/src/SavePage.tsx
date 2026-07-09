@@ -13,6 +13,7 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Textarea } from "./components/ui/textarea";
 import Spinner from "./Spinner";
+import { getBadgeStatus, setBadgeStatus } from "./utils/badgeCache";
 import { hasHostPermission } from "./utils/permissions";
 import usePluginSettings from "./utils/settings";
 import {
@@ -37,6 +38,10 @@ export default function SavePage() {
   const [currentTabUrl, setCurrentTabUrl] = useState<string | undefined>(
     undefined,
   );
+  const [isCheckingExisting, setIsCheckingExisting] = useState(false);
+  const [existingBookmarkId, setExistingBookmarkId] = useState<string | null>(
+    null,
+  );
 
   const {
     data,
@@ -47,8 +52,13 @@ export default function SavePage() {
       onError: (e) => {
         setError("Something went wrong: " + e.message);
       },
-      onSuccess: async () => {
-        // After successful creation, update badge cache and notify background
+      onSuccess: async (data, variables) => {
+        // Seed the badge cache with the id we now know for this URL so that
+        // reopening the popup on the same page doesn't need a fresh lookup.
+        if (variables.type === BookmarkTypes.LINK) {
+          await setBadgeStatus(variables.url, data.id);
+        }
+        // Notify background to refresh the toolbar badge/icon.
         try {
           const [currentTab] = await chrome.tabs.query({
             active: true,
@@ -119,6 +129,32 @@ export default function SavePage() {
     loadBookmarkRequest();
   }, [isSettingsLoaded]);
 
+  // Before saving, check whether this URL is already bookmarked (using the
+  // same lookup/cache that powers the toolbar badge) so we don't re-save a
+  // page we already know about and confuse the user with a "Saving
+  // Bookmark" spinner for something that isn't actually being created.
+  useEffect(() => {
+    if (!hasCheckedRequest || !pendingBookmark) return;
+    if (pendingBookmark.type !== BookmarkTypes.LINK) return;
+
+    let cancelled = false;
+    setIsCheckingExisting(true);
+    getBadgeStatus(pendingBookmark.url)
+      .then((bookmarkId) => {
+        if (!cancelled) setExistingBookmarkId(bookmarkId);
+      })
+      .catch(() => {
+        // Best-effort: if the lookup fails, fall through to the normal
+        // save flow instead of blocking the user from saving.
+      })
+      .finally(() => {
+        if (!cancelled) setIsCheckingExisting(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasCheckedRequest, pendingBookmark]);
+
   const saveBookmark = async (bookmark: ZNewBookmarkRequest) => {
     let finalBookmark = bookmark;
     // Only crawl when the bookmark target matches the active tab — context-menu
@@ -167,6 +203,8 @@ export default function SavePage() {
       settings.autoSave &&
       status === "idle" &&
       !isCapturing &&
+      !isCheckingExisting &&
+      existingBookmarkId === null &&
       !error
     ) {
       saveBookmark(pendingBookmark);
@@ -178,6 +216,8 @@ export default function SavePage() {
     settings.autoSave,
     status,
     isCapturing,
+    isCheckingExisting,
+    existingBookmarkId,
     error,
   ]);
 
@@ -200,12 +240,35 @@ export default function SavePage() {
     );
   }
 
+  if (existingBookmarkId !== null && status === "idle") {
+    return (
+      <Navigate
+        to={`/bookmark/${existingBookmarkId}`}
+        state={{ alreadyExists: true }}
+      />
+    );
+  }
+
+  if (isCheckingExisting) {
+    return (
+      <div className="flex justify-between text-lg">
+        <span>Checking Bookmark </span>
+        <Spinner />
+      </div>
+    );
+  }
+
   switch (status) {
     case "error": {
       return <div className="text-red-500">{error}</div>;
     }
     case "success": {
-      return <Navigate to={`/bookmark/${data.id}`} />;
+      return (
+        <Navigate
+          to={`/bookmark/${data.id}`}
+          state={{ alreadyExists: data.alreadyExists }}
+        />
+      );
     }
     case "pending": {
       return (

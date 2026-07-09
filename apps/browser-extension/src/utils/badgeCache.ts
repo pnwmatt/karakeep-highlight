@@ -47,6 +47,26 @@ export async function getBadgeStatus(url: string): Promise<string | null> {
 }
 
 /**
+ * Directly seed the badge status cache for a URL, e.g. right after creating
+ * a bookmark for it. Avoids a redundant lookup the next time this URL's
+ * status is checked (such as when the popup is reopened on the same page).
+ * @param url The URL to set the status for.
+ * @param bookmarkId The bookmark id now associated with this URL.
+ */
+export async function setBadgeStatus(
+  url: string,
+  bookmarkId: string | null,
+): Promise<void> {
+  const { useBadgeCache } = await getPluginSettings();
+  if (!useBadgeCache) return;
+
+  const queryClient = await getQueryClient();
+  if (!queryClient) return;
+
+  queryClient.setQueryData(["badgeStatus", url], bookmarkId);
+}
+
+/**
  * Clear badge status cache for a specific URL or all URLs.
  * @param url The URL to clear. If not provided, clears the entire cache.
  */
