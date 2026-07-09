@@ -13,7 +13,6 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Textarea } from "./components/ui/textarea";
 import Spinner from "./Spinner";
-import { getBadgeStatus } from "./utils/badgeCache";
 import { hasHostPermission } from "./utils/permissions";
 import usePluginSettings from "./utils/settings";
 import {
@@ -37,10 +36,6 @@ export default function SavePage() {
   );
   const [currentTabUrl, setCurrentTabUrl] = useState<string | undefined>(
     undefined,
-  );
-  const [isCheckingExisting, setIsCheckingExisting] = useState(false);
-  const [existingBookmarkId, setExistingBookmarkId] = useState<string | null>(
-    null,
   );
 
   const {
@@ -124,32 +119,6 @@ export default function SavePage() {
     loadBookmarkRequest();
   }, [isSettingsLoaded]);
 
-  // Before saving, check whether this URL is already bookmarked (using the
-  // same lookup/cache that powers the toolbar badge) so we don't re-save a
-  // page we already know about and confuse the user with a "Saving
-  // Bookmark" spinner for something that isn't actually being created.
-  useEffect(() => {
-    if (!hasCheckedRequest || !pendingBookmark) return;
-    if (pendingBookmark.type !== BookmarkTypes.LINK) return;
-
-    let cancelled = false;
-    setIsCheckingExisting(true);
-    getBadgeStatus(pendingBookmark.url)
-      .then((bookmarkId) => {
-        if (!cancelled) setExistingBookmarkId(bookmarkId);
-      })
-      .catch(() => {
-        // Best-effort: if the lookup fails, fall through to the normal
-        // save flow instead of blocking the user from saving.
-      })
-      .finally(() => {
-        if (!cancelled) setIsCheckingExisting(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [hasCheckedRequest, pendingBookmark]);
-
   const saveBookmark = async (bookmark: ZNewBookmarkRequest) => {
     let finalBookmark = bookmark;
     // Only crawl when the bookmark target matches the active tab — context-menu
@@ -198,8 +167,6 @@ export default function SavePage() {
       settings.autoSave &&
       status === "idle" &&
       !isCapturing &&
-      !isCheckingExisting &&
-      existingBookmarkId === null &&
       !error
     ) {
       saveBookmark(pendingBookmark);
@@ -211,8 +178,6 @@ export default function SavePage() {
     settings.autoSave,
     status,
     isCapturing,
-    isCheckingExisting,
-    existingBookmarkId,
     error,
   ]);
 
@@ -235,35 +200,12 @@ export default function SavePage() {
     );
   }
 
-  if (existingBookmarkId !== null && status === "idle") {
-    return (
-      <Navigate
-        to={`/bookmark/${existingBookmarkId}`}
-        state={{ alreadyExists: true }}
-      />
-    );
-  }
-
-  if (isCheckingExisting) {
-    return (
-      <div className="flex justify-between text-lg">
-        <span>Checking Bookmark </span>
-        <Spinner />
-      </div>
-    );
-  }
-
   switch (status) {
     case "error": {
       return <div className="text-red-500">{error}</div>;
     }
     case "success": {
-      return (
-        <Navigate
-          to={`/bookmark/${data.id}`}
-          state={{ alreadyExists: data.alreadyExists }}
-        />
-      );
+      return <Navigate to={`/bookmark/${data.id}`} />;
     }
     case "pending": {
       return (
