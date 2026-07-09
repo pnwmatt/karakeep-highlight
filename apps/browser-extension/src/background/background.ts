@@ -3,6 +3,14 @@ import {
   ZNewBookmarkRequest,
 } from "@karakeep/shared/types/bookmarks";
 
+import {
+  registerHighlightMessageHandlers,
+  runPendingHighlightSyncPass,
+} from "../features/highlights/backgroundHandlers";
+import {
+  registerAlwaysOnHighlightContentScript,
+  unregisterAlwaysOnHighlightContentScript,
+} from "../features/highlights/inject";
 import { clearBadgeStatus, getBadgeStatus } from "../utils/badgeCache";
 import {
   getPluginSettings,
@@ -13,6 +21,8 @@ import { getApiClient, initializeClients } from "../utils/trpc";
 import { MessageType } from "../utils/type";
 import { isHttpUrl } from "../utils/url";
 import { NEW_BOOKMARK_REQUEST_KEY_NAME } from "./protocol";
+
+const PENDING_HIGHLIGHT_SYNC_ALARM = "karakeep-pending-highlight-sync";
 
 const OPEN_KARAKEEP_ID = "open-karakeep";
 const ADD_LINK_TO_KARAKEEP_ID = "add-link";
@@ -32,6 +42,16 @@ async function checkSettingsState(settings: Settings) {
   } else {
     removeContextMenus();
     await clearAllCache();
+  }
+
+  const wantsAlwaysOn =
+    !!settings?.address &&
+    !!settings?.apiKey &&
+    settings?.highlightingMode === "always-on";
+  if (wantsAlwaysOn) {
+    await registerAlwaysOnHighlightContentScript();
+  } else {
+    await unregisterAlwaysOnHighlightContentScript();
   }
 }
 
@@ -258,6 +278,17 @@ subscribeToSettingsChanges(async (settings) => {
   await checkSettingsState(settings);
 });
 
+registerHighlightMessageHandlers();
+
+// Service workers can be suspended, so a setInterval isn't reliable for
+// draining the pending-highlight queue — use chrome.alarms instead.
+chrome.alarms.create(PENDING_HIGHLIGHT_SYNC_ALARM, { periodInMinutes: 1 });
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === PENDING_HIGHLIGHT_SYNC_ALARM) {
+    void runPendingHighlightSyncPass();
+  }
+});
+
 // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Manifest V3 allows async functions for all callbacks
 chrome.contextMenus.onClicked.addListener(handleContextMenuClick);
 
@@ -342,10 +373,24 @@ chrome.tabs.onUpdated.addListener(async (tabId) => {
   await checkAndUpdateIcon(tabId);
 });
 
-// Listen for REFRESH_BADGE messages from popup and update badge accordingly
-chrome.runtime.onMessage.addListener(async (msg) => {
-  if (msg && msg.type) {
-    if (msg.currentTab && msg.type === MessageType.BOOKMARK_REFRESH_BADGE) {
+// Listen for REFRESH_BADGE messages from popup and update badge accordingly.
+//
+// This listener must NOT be declared `async` itself: an async function
+// always returns a Promise the instant it's invoked, and when multiple
+// chrome.runtime.onMessage listeners are registered (this one plus e.g.
+// features/highlights/backgroundHandlers.ts's), the runtime treats *any*
+// listener that synchronously returns a Promise/true as "will respond
+// asynchronously" and uses whichever one settles first as the response for
+// every message — including message types this listener doesn't even own.
+// Since this one does no awaiting before falling through for unrelated
+// types, it was winning that race and resolving unrelated senders (e.g. the
+// highlight content script's GET_BOOKMARK_STATE) with `undefined` before the
+// real handler's response ever arrived. Keeping this listener synchronous
+// (with the actual work fire-and-forget inside) lets other listeners
+// respond uncontested.
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg?.currentTab && msg.type === MessageType.BOOKMARK_REFRESH_BADGE) {
+    void (async () => {
       console.log(
         "Received REFRESH_BADGE message for tab:",
         msg.currentTab.url,
@@ -356,6 +401,6 @@ chrome.runtime.onMessage.addListener(async (msg) => {
       if (typeof msg.currentTab.id === "number") {
         await checkAndUpdateIcon(msg.currentTab.id);
       }
-    }
+    })();
   }
 });

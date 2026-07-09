@@ -16,6 +16,9 @@ const zSettingsSchema = z.object({
   useSingleFile: z.boolean().default(false),
   singleFileIncludeImages: z.boolean().default(true),
   autoSave: z.boolean().default(true),
+  highlightingMode: z
+    .enum(["off", "on-demand", "always-on"])
+    .default("on-demand"),
 });
 
 const DEFAULT_SETTINGS: Settings = {
@@ -29,6 +32,7 @@ const DEFAULT_SETTINGS: Settings = {
   useSingleFile: false,
   singleFileIncludeImages: true,
   autoSave: true,
+  highlightingMode: "on-demand",
 };
 
 export type Settings = z.infer<typeof zSettingsSchema>;

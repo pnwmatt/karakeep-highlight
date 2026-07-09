@@ -1,4 +1,4 @@
-import { Home, RefreshCw, Settings, X } from "lucide-react";
+import { Highlighter, Home, RefreshCw, Settings, X } from "lucide-react";
 import { Outlet, useNavigate } from "react-router-dom";
 
 import { Button } from "./components/ui/button";
@@ -40,6 +40,9 @@ export default function Layout() {
               <RefreshCw className="w-4" />
             </Button>
           )}
+          <Button onClick={() => navigate("/highlights")}>
+            <Highlighter className="w-4" />
+          </Button>
           <Button onClick={() => navigate("/options")}>
             <Settings className="w-4" />
           </Button>
