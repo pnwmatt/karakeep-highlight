@@ -160,6 +160,41 @@ you know the state of the tree.
    always clears. The old ad-hoc `console.log` diagnostics were removed now
    that the root cause is known.
 
+   **Follow-up: the spinner/hint fix above was necessary but not
+   sufficient.** User-tested against the real toolbar popup (not a full tab
+   — that gap is exactly what my live-Firefox verification had missed, since
+   `driver.get(popupUrl)` opens a normal tab, not the actual `browser_action`
+   popup panel) and it was still stuck. Root cause of *that*: Firefox has a
+   long-standing bug where `chrome.permissions.request()` never resolves —
+   no prompt, no error, just hangs forever — when called from a transient
+   `browser_action` popup, because Firefox can't find a window to anchor the
+   permission notification to
+   ([bugzilla #1432083](https://bugzilla.mozilla.org/show_bug.cgi?id=1432083),
+   with duplicates for the embedded about:addons preferences page
+   ([#1382953](https://bugzilla.mozilla.org/show_bug.cgi?id=1382953)) and
+   context-menu clicks
+   ([#1422605](https://bugzilla.mozilla.org/show_bug.cgi?id=1422605))).
+   Confirmed by opening the same `?grantPermission=always-on` URL below
+   directly in a normal tab — works fine there — vs. the popup, where it
+   just sits forever with no doorhanger and no error. Mozilla's own
+   documented workaround is to request the permission from a real tab
+   instead of the popup.
+   **Fix**: added `isPopupContext()` to `utils/permissions.ts` (checks
+   `chrome.extension.getViews({type: "popup"}).includes(window)`).
+   `onChangeHighlightingMode`'s "always-on" branch and
+   `onToggleClientSideCrawling`'s enable branch (identical bug, same
+   `<all_urls>` permission) now check this first and, if true, open
+   `index.html#/options?grantPermission=always-on` (or
+   `client-side-crawling`) in a new tab via `chrome.tabs.create` instead of
+   calling `requestHostPermission()` directly — the popup closing itself as
+   focus shifts to the new tab is expected here, not a bug. `OptionsPage.tsx`
+   reads that query param on mount and shows a banner with an explicit
+   "Grant permission" button; clicking it (a fresh user gesture *in the
+   tab*, which is required — the gesture from the popup click doesn't carry
+   over) calls `requestHostPermission()` there, where it works. Verified
+   live end-to-end: banner → click → real doorhanger → Allow → banner
+   clears → Select shows "Always-on" → persists across reload.
+
 ## Open issues (unresolved — pick these up)
 
 ### B. Existing highlights don't reappear after a page refresh
