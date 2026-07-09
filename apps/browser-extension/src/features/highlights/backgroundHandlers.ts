@@ -9,14 +9,32 @@ import {
   getHighlightsForBookmark,
   updateHighlight,
 } from "./api";
-import { HIGHLIGHT_MESSAGE, isLocalHighlightId } from './messages';
-import type { CreateHighlightRequest, CreateHighlightResponse, DeleteHighlightRequest, DeleteHighlightResponse, GetBookmarkStateRequest, GetBookmarkStateResponse, HighlightRequest, HighlightWithOccurrence, SyncedBroadcast, UpdateHighlightRequest, UpdateHighlightResponse } from './messages';
+import { HIGHLIGHT_MESSAGE, isLocalHighlightId } from "./messages";
+import type {
+  CreateHighlightRequest,
+  CreateHighlightResponse,
+  DeleteHighlightRequest,
+  DeleteHighlightResponse,
+  GetBookmarkStateRequest,
+  GetBookmarkStateResponse,
+  HighlightRequest,
+  HighlightWithOccurrence,
+  SyncedBroadcast,
+  UpdateHighlightRequest,
+  UpdateHighlightResponse,
+} from "./messages";
 import {
   crawledContextForOffset,
   occurrenceIndexForCrawledOffset,
 } from "./offsetMapping";
-import { addPending, listPendingForBookmark, removePending, syncPendingHighlights, updatePending } from './pendingQueue';
-import type { PendingHighlight } from './pendingQueue';
+import {
+  addPending,
+  listPendingForBookmark,
+  removePending,
+  syncPendingHighlights,
+  updatePending,
+} from "./pendingQueue";
+import type { PendingHighlight } from "./pendingQueue";
 
 export function registerHighlightMessageHandlers() {
   chrome.runtime.onMessage.addListener(

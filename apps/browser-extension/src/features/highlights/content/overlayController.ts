@@ -36,7 +36,9 @@ export function registerOverlayImpl(next: OverlayImpl): void {
 
 export function openCreateForm(args: OpenCreateFormArgs): void {
   if (!impl) {
-    console.warn("[karakeep-highlights] openCreateForm called before overlay impl registered");
+    console.warn(
+      "[karakeep-highlights] openCreateForm called before overlay impl registered",
+    );
     return;
   }
   impl.openCreateForm(args);
@@ -44,7 +46,9 @@ export function openCreateForm(args: OpenCreateFormArgs): void {
 
 export function openEditForm(args: OpenEditFormArgs): void {
   if (!impl) {
-    console.warn("[karakeep-highlights] openEditForm called before overlay impl registered");
+    console.warn(
+      "[karakeep-highlights] openEditForm called before overlay impl registered",
+    );
     return;
   }
   impl.openEditForm(args);

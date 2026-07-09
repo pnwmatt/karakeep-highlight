@@ -6,7 +6,10 @@ const config = {
   // classes live in packages/shared-react, outside this app's own src/ — so
   // they need to be scanned explicitly, same as apps/web/tailwind.config.ts
   // already does, or Tailwind's JIT never generates that CSS at all.
-  content: [...web.content, "../../packages/shared-react/components/**/*.{ts,tsx}"],
+  content: [
+    ...web.content,
+    "../../packages/shared-react/components/**/*.{ts,tsx}",
+  ],
   presets: [web],
 };
 

@@ -19,7 +19,9 @@ function getHighlightContentScriptFiles(): string[] {
 }
 
 /** Injects the highlight content script into a single tab, if not already present. */
-export async function ensureHighlightContentScript(tabId: number): Promise<void> {
+export async function ensureHighlightContentScript(
+  tabId: number,
+): Promise<void> {
   try {
     await chrome.tabs.sendMessage(tabId, { type: "HIGHLIGHT_PING" });
     return;

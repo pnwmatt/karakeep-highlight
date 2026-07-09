@@ -130,38 +130,37 @@ you know the state of the tree.
    `bookmarks.checkUrl` directly, uncached) and switching
    `handleGetBookmarkState` to use it instead of `getBadgeStatus`.
 
+## Bugs found and fixed so far (cont'd)
+
+9. **Settings → Highlighting mode `<Select>` "doesn't toggle" — root-caused
+   and fixed.** Not a Select/Radix bug, and not persistence-specific to this
+   field. Reproduced live in real Firefox (temporary-addon install via
+   `selenium-webdriver` + `geckodriver`, full-desktop screenshot via Python
+   `mss` — headless agent sessions can't drive a real browser, but a
+   `send_later`-scheduled full session with unlocked egress can). Root
+   cause: selecting **"always-on"** calls `requestHostPermission()` →
+   `chrome.permissions.request({origins: ["<all_urls>"]})`, which pops a
+   *native* browser permission doorhanger ("New permissions: Access your
+   data for all websites — Allow/Deny"). Firefox anchors this near the
+   address bar/toolbar, not inside the popup, so it's easy to miss entirely.
+   The `<Select>` is controlled by `settings.highlightingMode`, so until that
+   promise resolves it just keeps showing the *old* value with zero visual
+   feedback — looking exactly like "nothing happened" rather than "waiting
+   on you to answer a prompt". Confirmed via console logs
+   (`onChangeHighlightingMode called with always-on` fires, but
+   `requestHostPermission ->` never logs until the doorhanger is answered)
+   and via screenshot showing the doorhanger sitting there unanswered.
+   Clicking "Allow" completes the flow correctly and it persists across
+   reload — so "off"/"on-demand" were never affected (they don't touch
+   permissions), matching what static analysis had already ruled out.
+   **Fix**: `OptionsPage.tsx` now tracks `isChangingHighlightingMode`,
+   disables the Select and shows a `<Spinner>` next to it plus a hint
+   ("Check for a permission request from your browser…") while
+   `onChangeHighlightingMode` is in flight, wrapped in `try/finally` so it
+   always clears. The old ad-hoc `console.log` diagnostics were removed now
+   that the root cause is known.
+
 ## Open issues (unresolved — pick these up)
-
-### A. Settings → Highlighting mode `<Select>` doesn't seem to toggle
-
-User-confirmed still broken as of the last round. Not yet root-caused.
-
-What's ruled out / known:
-- Not a settings-persistence bug in general — every *other* setting on the
-  same page (`OptionsPage.tsx`) uses the identical `setSettings()` pattern
-  and works fine, including another `<Select>` (the Theme picker) using the
-  exact same shared `components/ui/select.tsx`.
-- Diagnostic logging is already in place in `onChangeHighlightingMode`
-  (`OptionsPage.tsx`) — logs when the handler fires, the
-  `requestHostPermission()` result (for the "always-on" branch), and
-  confirmation the setting write completed. **Nobody has captured this log
-  output yet** — that's the next step, not more static-analysis guessing.
-- Important gotcha for whoever tests next: this log only appears in the
-  **popup's own devtools console**, which is a *third*, easy-to-miss context
-  distinct from both the content script's page console and Firefox's
-  "Debug Extension" (background) console. To see it: open devtools first
-  (undock/pin it), *then* click the toolbar icon so the popup opens without
-  losing focus/closing — or right-click the toolbar icon → "Inspect" while
-  the popup is open.
-- One untested hypothesis: `requestHostPermission()` (called for the
-  "always-on" branch specifically) requires a live user-gesture/transient
-  activation per the WebExtensions permissions API — if Radix `Select`'s
-  `onValueChange` fires outside that window (unlike `Switch`'s
-  `onCheckedChange`, which a comment elsewhere in this codebase already flags
-  as gesture-sensitive), `chrome.permissions.request()` could silently
-  return `false` with no visible error. This would only explain the
-  "always-on" transition failing, not "off"/"on-demand", so get the log
-  output first to see if it's option-specific or affects the whole dropdown.
 
 ### B. Existing highlights don't reappear after a page refresh
 
@@ -194,13 +193,28 @@ just build                                  # builds dist-firefox/, zips to exte
 pnpm dlx web-ext lint --source-dir=dist-firefox   # should be 0 errors (6 pre-existing innerHTML warnings from vendor bundles are fine)
 ```
 
-No real browser is available in an agent session — every fix in this file
-was verified by build/typecheck/lint passing plus static inspection of the
-actual built output (grepping compiled chunks/CSS for expected strings), not
-by clicking through in a real Firefox. **Always ask whoever is testing live
-to paste the actual console output** rather than assuming a fix worked from
-build success alone — every real bug found in this feature so far was
-invisible to typecheck/lint/build and only showed up at runtime.
+Real Firefox *is* reachable from an agent session if egress is unlocked and
+someone downloads it — `npx playwright install firefox` (needs
+`cdn.playwright.dev`/`playwright.download.prss.microsoft.com` allowed
+through the egress proxy) gets a real Firefox binary, which can then be
+driven with `selenium-webdriver` + the `geckodriver` npm package (Playwright
+itself can't attach to a WebExtension-loaded Firefox — only Chromium
+supports `--load-extension` through Playwright). Install the addon
+temporarily with `driver.installAddon(distDir, true)`, resolve its
+`moz-extension://` UUID by switching to chrome context
+(`driver.setContext(firefox.Context.CHROME)`) and reading the
+`extensions.webextensions.uuids` pref, then navigate a normal tab there.
+Full-desktop screenshots (to see *native browser chrome* like permission
+doorhangers, which WebDriver's own `takeScreenshot()` won't show since it's
+content-viewport-only) need something outside the trimmed
+Playwright-bundled ffmpeg (no x11grab support) — Python's `mss` package
+worked fine. This is how bug #9 above got root-caused. Absent that kind of
+setup, fall back to build/typecheck/lint passing plus static inspection of
+the built output (grepping compiled chunks/CSS for expected strings) — but
+**that's a weaker signal**: every real bug found in this feature so far was
+invisible to typecheck/lint/build and only showed up at runtime, so a live
+browser (or a human pasting real console output) beats static analysis
+whenever either is available.
 
 Three separate devtools consoles matter here and it's easy to check the
 wrong one:

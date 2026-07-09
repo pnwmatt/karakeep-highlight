@@ -36,9 +36,8 @@ const STORAGE_KEY = "karakeep-pending-highlights";
 const MAX_ATTEMPTS = 20;
 
 async function readAll(): Promise<PendingHighlight[]> {
-  const { [STORAGE_KEY]: entries } = await chrome.storage.local.get(
-    STORAGE_KEY,
-  );
+  const { [STORAGE_KEY]: entries } =
+    await chrome.storage.local.get(STORAGE_KEY);
   return Array.isArray(entries) ? (entries as PendingHighlight[]) : [];
 }
 
