@@ -195,6 +195,10 @@ you know the state of the tree.
    live end-to-end: banner → click → real doorhanger → Allow → banner
    clears → Select shows "Always-on" → persists across reload.
 
+   **User-confirmed fixed** (shipped in PRs #2 and #4). Issue A from the old
+   "Open issues" list is closed — don't re-open/re-investigate this one
+   without a new, distinct repro.
+
 ## Open issues (unresolved — pick these up)
 
 ### B. Existing highlights don't reappear after a page refresh
