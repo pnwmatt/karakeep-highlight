@@ -23,3 +23,20 @@ export function requestHostPermission(): Promise<boolean> {
 export function removeHostPermission(): Promise<boolean> {
   return chrome.permissions.remove(HOST_PERMISSIONS);
 }
+
+/**
+ * `chrome.permissions.request()` doesn't reliably resolve when called from a
+ * transient `browser_action` popup in Firefox — the promise just hangs
+ * forever with no prompt and no error
+ * (https://bugzilla.mozilla.org/show_bug.cgi?id=1432083, and duplicates for
+ * the embedded about:addons preferences page and context-menu clicks).
+ * Firefox can't find a window to anchor the permission notification to. The
+ * documented workaround is to request permissions from a real tab instead.
+ */
+export function isPopupContext(): boolean {
+  return (
+    typeof chrome !== "undefined" &&
+    !!chrome.extension?.getViews &&
+    chrome.extension.getViews({ type: "popup" }).includes(window)
+  );
+}

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Karakeep",
+  "name": "Karakeep with Highlight",
   "description": "An extension to bookmark links to karakeep.app",
-  "version": "1.2.11",
+  "version": "1.3.0",
   "icons": {
     "16": "public/logo-16.png",
     "48": "public/logo-48.png",
@@ -38,18 +38,34 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "addon@karakeep.app"
+      "id": "addon@mcnet.cloud",
+      "data_collection_permissions": {
+        "required": ["bookmarksInfo"]
+      }
     }
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   },
-  "permissions": ["storage", "tabs", "contextMenus", "activeTab", "scripting"],
+  "permissions": [
+    "storage",
+    "tabs",
+    "contextMenus",
+    "activeTab",
+    "scripting",
+    "alarms"
+  ],
   "optional_host_permissions": ["<all_urls>"],
   "content_scripts": [
     {
       "matches": ["https://karakeep.invalid/*"],
       "js": ["src/content-scripts/singlefile-content-script.ts"],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": ["https://karakeep.invalid/*"],
+      "js": ["src/features/highlights/content/highlight-content-script.ts"],
       "run_at": "document_idle",
       "all_frames": false
     }

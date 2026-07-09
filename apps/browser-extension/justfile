@@ -1,0 +1,7 @@
+# https://just.systems
+
+default:
+    echo 'Hello, world!'
+
+build:
+    export VITE_BUILD_FIREFOX=true && pnpm tsc && pnpm vite build --outDir dist-firefox && cd dist-firefox && zip -r ../extensionjust.zip .
