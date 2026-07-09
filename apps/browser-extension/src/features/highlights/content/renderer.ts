@@ -27,7 +27,10 @@ function cssHighlightName(color: ZHighlightColor): string {
 }
 
 const cssHighlightsByColor = new Map<ZHighlightColor, globalThis.Highlight>();
-const activeHighlights = new Map<string, { range: Range; color: ZHighlightColor }>();
+const activeHighlights = new Map<
+  string,
+  { range: Range; color: ZHighlightColor }
+>();
 
 let initialized = false;
 
@@ -70,7 +73,10 @@ export function removeHighlight(id: string): void {
   activeHighlights.delete(id);
 }
 
-export function repaintHighlightColor(id: string, color: ZHighlightColor): void {
+export function repaintHighlightColor(
+  id: string,
+  color: ZHighlightColor,
+): void {
   const existing = activeHighlights.get(id);
   if (!existing) {
     return;

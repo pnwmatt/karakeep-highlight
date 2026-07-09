@@ -6,11 +6,22 @@
  */
 import type { ZHighlightColor } from "@karakeep/shared/types/highlights";
 
-import { HIGHLIGHT_MESSAGE, newLocalHighlightId } from '../messages';
-import type { CreateHighlightRequest, DeleteHighlightRequest, GetBookmarkStateRequest, GetBookmarkStateResponse, SyncedBroadcast, UpdateHighlightRequest } from '../messages';
+import { HIGHLIGHT_MESSAGE, newLocalHighlightId } from "../messages";
+import type {
+  CreateHighlightRequest,
+  DeleteHighlightRequest,
+  GetBookmarkStateRequest,
+  GetBookmarkStateResponse,
+  SyncedBroadcast,
+  UpdateHighlightRequest,
+} from "../messages";
 import { describeSelection, findLiveRange } from "../liveRelocate";
 import { mountHighlightOverlay } from "./ShadowRoot";
-import { closeOverlayForm, openCreateForm, openEditForm } from "./overlayController";
+import {
+  closeOverlayForm,
+  openCreateForm,
+  openEditForm,
+} from "./overlayController";
 import {
   getHighlightAtPoint,
   initHighlightRendering,
@@ -46,7 +57,9 @@ const notesById = new Map<string, string | null>();
 async function init() {
   try {
     initHighlightRendering();
-    console.log("[karakeep-highlights] CSS custom highlight rendering initialized");
+    console.log(
+      "[karakeep-highlights] CSS custom highlight rendering initialized",
+    );
   } catch (err) {
     console.error("[karakeep-highlights] initHighlightRendering failed", err);
   }
@@ -74,7 +87,9 @@ async function init() {
     // Highlighting only works once the page is bookmarked — matches
     // Webtero's existing "annotate now, save races in the background" flow,
     // just scoped to this content script not re-triggering the save itself.
-    console.log("[karakeep-highlights] no bookmarkId for this URL, highlighting disabled");
+    console.log(
+      "[karakeep-highlights] no bookmarkId for this URL, highlighting disabled",
+    );
     return;
   }
   currentBookmarkId = state.bookmarkId;
@@ -109,7 +124,10 @@ async function init() {
       }
     }
   } catch (err) {
-    console.error("[karakeep-highlights] restoring existing highlights failed", err);
+    console.error(
+      "[karakeep-highlights] restoring existing highlights failed",
+      err,
+    );
   }
 }
 
@@ -132,7 +150,9 @@ function handleSynced(msg: SyncedBroadcast) {
 }
 
 function handleMouseUp(e: MouseEvent) {
-  console.log("[karakeep-highlights] mouseup", { bookmarkId: currentBookmarkId });
+  console.log("[karakeep-highlights] mouseup", {
+    bookmarkId: currentBookmarkId,
+  });
 
   const target = e.target as Element | null;
   if (target?.closest?.(`#${OVERLAY_HOST_ID}`)) {
@@ -142,7 +162,10 @@ function handleMouseUp(e: MouseEvent) {
 
   const existing = getHighlightAtPoint(e.clientX, e.clientY);
   if (existing) {
-    console.log("[karakeep-highlights] clicked existing highlight", existing.id);
+    console.log(
+      "[karakeep-highlights] clicked existing highlight",
+      existing.id,
+    );
     openEditForm({
       x: e.clientX,
       y: e.clientY + OVERLAY_Y_OFFSET,
@@ -164,7 +187,9 @@ function handleMouseUp(e: MouseEvent) {
   }
   const range = selection.getRangeAt(0);
   if (!document.body.contains(range.commonAncestorContainer)) {
-    console.log("[karakeep-highlights] selection not inside document.body, ignoring");
+    console.log(
+      "[karakeep-highlights] selection not inside document.body, ignoring",
+    );
     return;
   }
   const text = range.toString();
@@ -176,7 +201,10 @@ function handleMouseUp(e: MouseEvent) {
     return;
   }
 
-  console.log("[karakeep-highlights] selection captured, painting draft highlight", text);
+  console.log(
+    "[karakeep-highlights] selection captured, painting draft highlight",
+    text,
+  );
   const { occurrenceIndex, context } = describeSelection(
     document.body,
     range,
@@ -187,7 +215,11 @@ function handleMouseUp(e: MouseEvent) {
   const paintedRange = range.cloneRange();
   try {
     paintHighlight(localId, paintedRange, "yellow");
-    console.log("[karakeep-highlights] paintHighlight succeeded", localId, rect);
+    console.log(
+      "[karakeep-highlights] paintHighlight succeeded",
+      localId,
+      rect,
+    );
   } catch (err) {
     console.error("[karakeep-highlights] paintHighlight threw", err);
   }
@@ -202,7 +234,15 @@ function handleMouseUp(e: MouseEvent) {
     x: rect.left + rect.width / 2,
     y: rect.top + OVERLAY_Y_OFFSET,
     onSave: (color, note) =>
-      createHighlight(localId, text, occurrenceIndex, context, color, note, selection),
+      createHighlight(
+        localId,
+        text,
+        occurrenceIndex,
+        context,
+        color,
+        note,
+        selection,
+      ),
     onCancel: () => {
       removeHighlight(localId);
       notesById.delete(localId);

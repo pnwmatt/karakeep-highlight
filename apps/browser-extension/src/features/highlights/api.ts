@@ -36,7 +36,9 @@ export async function updateHighlight(
   return (await client()).highlights.update.mutate(input);
 }
 
-export async function deleteHighlight(highlightId: string): Promise<ZHighlight> {
+export async function deleteHighlight(
+  highlightId: string,
+): Promise<ZHighlight> {
   return (await client()).highlights.delete.mutate({ highlightId });
 }
 

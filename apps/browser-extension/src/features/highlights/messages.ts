@@ -4,7 +4,10 @@
  * background, never the content script, since content scripts run in the
  * page's origin and may be blocked by the page's own CSP.
  */
-import type { ZHighlight, ZHighlightColor } from "@karakeep/shared/types/highlights";
+import type {
+  ZHighlight,
+  ZHighlightColor,
+} from "@karakeep/shared/types/highlights";
 
 import type { PendingHighlight } from "./pendingQueue";
 
@@ -63,7 +66,9 @@ export interface CreateHighlightRequest {
   /** Prefix/suffix around the selection, used to anchor against crawled HTML. */
   context: { prefix: string; suffix: string };
 }
-export type CreateHighlightResponse = { ok: true } | { ok: false; error: string };
+export type CreateHighlightResponse =
+  | { ok: true }
+  | { ok: false; error: string };
 
 export interface UpdateHighlightRequest {
   type: typeof HIGHLIGHT_MESSAGE.UPDATE;
@@ -71,13 +76,17 @@ export interface UpdateHighlightRequest {
   color?: ZHighlightColor;
   note?: string | null;
 }
-export type UpdateHighlightResponse = { ok: true } | { ok: false; error: string };
+export type UpdateHighlightResponse =
+  | { ok: true }
+  | { ok: false; error: string };
 
 export interface DeleteHighlightRequest {
   type: typeof HIGHLIGHT_MESSAGE.DELETE;
   highlightId: string;
 }
-export type DeleteHighlightResponse = { ok: true } | { ok: false; error: string };
+export type DeleteHighlightResponse =
+  | { ok: true }
+  | { ok: false; error: string };
 
 /** Broadcast from background to every tab once a pending highlight lands. */
 export interface SyncedBroadcast {

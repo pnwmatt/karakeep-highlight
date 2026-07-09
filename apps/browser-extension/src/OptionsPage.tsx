@@ -70,23 +70,34 @@ export default function OptionsPage() {
     }
   };
 
+  // Selecting "always-on" requests the `<all_urls>` host permission, which
+  // pops a native browser prompt the user has to answer (Firefox anchors it
+  // to the toolbar, easy to miss). The Select is controlled by
+  // `settings.highlightingMode`, so without this it just silently keeps
+  // showing the old value until the prompt is answered — looking exactly
+  // like "the dropdown doesn't do anything" rather than "waiting on you".
+  const [isChangingHighlightingMode, setIsChangingHighlightingMode] =
+    useState(false);
+
   const onChangeHighlightingMode = async (
     mode: "off" | "on-demand" | "always-on",
   ) => {
-    console.log("[karakeep-highlights] onChangeHighlightingMode called with", mode);
-    if (mode === "always-on") {
-      const granted = await requestHostPermission();
-      console.log("[karakeep-highlights] requestHostPermission ->", granted);
-      if (!granted) {
-        return;
+    setIsChangingHighlightingMode(true);
+    try {
+      if (mode === "always-on") {
+        const granted = await requestHostPermission();
+        if (!granted) {
+          return;
+        }
+        setHostPermissionGranted(true);
       }
-      setHostPermissionGranted(true);
-    }
-    await setSettings((s) => ({ ...s, highlightingMode: mode }));
-    console.log("[karakeep-highlights] settings updated, highlightingMode should now be", mode);
-    if (mode !== "always-on" && !settings.useSingleFile) {
-      await removeHostPermission();
-      setHostPermissionGranted(false);
+      await setSettings((s) => ({ ...s, highlightingMode: mode }));
+      if (mode !== "always-on" && !settings.useSingleFile) {
+        await removeHostPermission();
+        setHostPermissionGranted(false);
+      }
+    } finally {
+      setIsChangingHighlightingMode(false);
     }
   };
 
@@ -224,26 +235,36 @@ export default function OptionsPage() {
         <div className="flex flex-col">
           <span className="text-sm font-medium">Highlighting</span>
           <span className="text-xs text-gray-500">
-            On-demand activates highlighting when you open the Highlights
-            panel for a page. Always-on makes it available on every page
-            without opening the extension first, and asks for permission to
-            read the content of pages you visit.
+            On-demand activates highlighting when you open the Highlights panel
+            for a page. Always-on makes it available on every page without
+            opening the extension first, and asks for permission to read the
+            content of pages you visit.
           </span>
         </div>
-        <Select
-          value={settings.highlightingMode}
-          onValueChange={onChangeHighlightingMode}
-        >
-          <SelectTrigger className="w-32 shrink-0">
-            <SelectValue placeholder="Highlighting" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="off">Off</SelectItem>
-            <SelectItem value="on-demand">On-demand</SelectItem>
-            <SelectItem value="always-on">Always-on</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex shrink-0 items-center gap-2">
+          {isChangingHighlightingMode && <Spinner />}
+          <Select
+            value={settings.highlightingMode}
+            onValueChange={onChangeHighlightingMode}
+            disabled={isChangingHighlightingMode}
+          >
+            <SelectTrigger className="w-32 shrink-0">
+              <SelectValue placeholder="Highlighting" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="off">Off</SelectItem>
+              <SelectItem value="on-demand">On-demand</SelectItem>
+              <SelectItem value="always-on">Always-on</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+      {isChangingHighlightingMode && (
+        <p className="text-xs text-muted-foreground">
+          Check for a permission request from your browser (it may appear near
+          the address bar or toolbar) and allow it to continue.
+        </p>
+      )}
       <hr />
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-medium">Auto-save on open</span>

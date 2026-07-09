@@ -22,8 +22,8 @@ import {
 } from "@karakeep/shared/types/highlights";
 
 import { cn } from "../../../lib/utils";
-import { registerOverlayImpl } from './overlayController';
-import type { OpenCreateFormArgs, OpenEditFormArgs } from './overlayController';
+import { registerOverlayImpl } from "./overlayController";
+import type { OpenCreateFormArgs, OpenEditFormArgs } from "./overlayController";
 
 type FormState =
   | { mode: "closed" }
@@ -40,7 +40,9 @@ export function HighlightOverlay({
   const [note, setNote] = useState("");
 
   useEffect(() => {
-    console.log("[karakeep-highlights] HighlightOverlay mounted, registering impl");
+    console.log(
+      "[karakeep-highlights] HighlightOverlay mounted, registering impl",
+    );
     registerOverlayImpl({
       openCreateForm: (args) => {
         console.log("[karakeep-highlights] overlay: openCreateForm", args);
