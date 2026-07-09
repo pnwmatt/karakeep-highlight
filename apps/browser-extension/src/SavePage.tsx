@@ -13,7 +13,7 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Textarea } from "./components/ui/textarea";
 import Spinner from "./Spinner";
-import { getBadgeStatus } from "./utils/badgeCache";
+import { getBadgeStatus, setBadgeStatus } from "./utils/badgeCache";
 import { hasHostPermission } from "./utils/permissions";
 import usePluginSettings from "./utils/settings";
 import {
@@ -52,8 +52,13 @@ export default function SavePage() {
       onError: (e) => {
         setError("Something went wrong: " + e.message);
       },
-      onSuccess: async () => {
-        // After successful creation, update badge cache and notify background
+      onSuccess: async (data, variables) => {
+        // Seed the badge cache with the id we now know for this URL so that
+        // reopening the popup on the same page doesn't need a fresh lookup.
+        if (variables.type === BookmarkTypes.LINK) {
+          await setBadgeStatus(variables.url, data.id);
+        }
+        // Notify background to refresh the toolbar badge/icon.
         try {
           const [currentTab] = await chrome.tabs.query({
             active: true,

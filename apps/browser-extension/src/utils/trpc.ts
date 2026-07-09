@@ -83,13 +83,18 @@ export async function initializeClients() {
 
     const persister = createChromeStorage();
     if (useBadgeCache) {
-      persistQueryClient({
+      // Each popup open runs in a fresh JS context with an empty in-memory
+      // QueryClient, so callers must wait for the disk-persisted cache to be
+      // hydrated back in before issuing queries — otherwise every query looks
+      // like a cache miss and falls through to a live network request.
+      const [, restorePromise] = persistQueryClient({
         queryClient,
         persister,
         // Avoid restoring very old data and bust on policy changes
         maxAge: badgeCacheExpireMs * 2,
         buster: `badge:${address}:${badgeCacheExpireMs}`,
       });
+      await restorePromise;
     } else {
       // Ensure disk cache is cleared when caching is disabled
       await persister.removeClient();
