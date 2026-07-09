@@ -19,7 +19,7 @@
     "@astrojs/check": "^0.9.4",
     "@astrojs/react": "^5.0.2",
     "@radix-ui/react-slot": "^1.2.4",
-    "astro": "^6.1.6",
+    "astro": "^6.4.6",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "lucide-react": "^0.501.0",
@@ -37,7 +37,7 @@
     "@types/react-dom": "19.2.3",
     "autoprefixer": "^10.4.17",
     "portless": "^0.10.3",
-    "postcss": "^8.4.35",
+    "postcss": "^8.5.10",
     "tailwindcss": "^3.4.1",
     "vite-plugin-svgr": "^4.3.0"
   }
