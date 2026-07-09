@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
@@ -16,6 +16,7 @@ import Logo from "./Logo";
 import Spinner from "./Spinner";
 import {
   hasHostPermission,
+  isPopupContext,
   removeHostPermission,
   requestHostPermission,
 } from "./utils/permissions";
@@ -25,10 +26,23 @@ import usePluginSettings, {
 import { useTheme } from "./utils/ThemeProvider";
 import { useTRPC } from "./utils/trpc";
 
+type PermissionGrantIntent = "client-side-crawling" | "always-on";
+
+// Opens the options page in a real tab pre-armed to finish a permission
+// grant that can't complete from the popup (see isPopupContext's doc
+// comment). The popup closing itself as focus moves to the new tab is
+// expected here, not a bug.
+function openPermissionGrantTab(intent: PermissionGrantIntent) {
+  chrome.tabs.create({
+    url: chrome.runtime.getURL(`index.html#/options?grantPermission=${intent}`),
+  });
+}
+
 export default function OptionsPage() {
   const api = useTRPC();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { settings, setSettings } = usePluginSettings();
   const { setTheme, theme } = useTheme();
 
@@ -51,6 +65,10 @@ export default function OptionsPage() {
 
   const onToggleClientSideCrawling = async (checked: boolean) => {
     if (checked) {
+      if (isPopupContext()) {
+        openPermissionGrantTab("client-side-crawling");
+        return;
+      }
       // Must run synchronously off the user gesture — don't await anything else
       // before requesting the permission.
       const granted = await requestHostPermission();
@@ -71,17 +89,23 @@ export default function OptionsPage() {
   };
 
   // Selecting "always-on" requests the `<all_urls>` host permission, which
-  // pops a native browser prompt the user has to answer (Firefox anchors it
-  // to the toolbar, easy to miss). The Select is controlled by
-  // `settings.highlightingMode`, so without this it just silently keeps
-  // showing the old value until the prompt is answered — looking exactly
-  // like "the dropdown doesn't do anything" rather than "waiting on you".
+  // pops a native browser prompt the user has to answer. The Select is
+  // controlled by `settings.highlightingMode`, so without a pending state it
+  // just silently keeps showing the old value until the prompt is answered —
+  // looking exactly like "the dropdown doesn't do anything" rather than
+  // "waiting on you". From the popup specifically, that promise never
+  // resolves at all (see isPopupContext), so we hand off to a real tab there
+  // instead of showing a pending state that would never end.
   const [isChangingHighlightingMode, setIsChangingHighlightingMode] =
     useState(false);
 
   const onChangeHighlightingMode = async (
     mode: "off" | "on-demand" | "always-on",
   ) => {
+    if (mode === "always-on" && isPopupContext()) {
+      openPermissionGrantTab("always-on");
+      return;
+    }
     setIsChangingHighlightingMode(true);
     try {
       if (mode === "always-on") {
@@ -98,6 +122,37 @@ export default function OptionsPage() {
       }
     } finally {
       setIsChangingHighlightingMode(false);
+    }
+  };
+
+  // Landing page for the tab opened by openPermissionGrantTab above. Requires
+  // its own explicit button click (rather than firing automatically on
+  // mount) because the permissions API needs a real user gesture in *this*
+  // tab — the click that opened the tab doesn't carry over.
+  const grantIntent = searchParams.get(
+    "grantPermission",
+  ) as PermissionGrantIntent | null;
+  const [isGrantingPermission, setIsGrantingPermission] = useState(false);
+  const [grantPermissionError, setGrantPermissionError] = useState(false);
+
+  const onGrantPermission = async () => {
+    setIsGrantingPermission(true);
+    setGrantPermissionError(false);
+    try {
+      const granted = await requestHostPermission();
+      if (!granted) {
+        setGrantPermissionError(true);
+        return;
+      }
+      setHostPermissionGranted(true);
+      if (grantIntent === "always-on") {
+        await setSettings((s) => ({ ...s, highlightingMode: "always-on" }));
+      } else if (grantIntent === "client-side-crawling") {
+        await setSettings((s) => ({ ...s, useSingleFile: true }));
+      }
+      setSearchParams({}, { replace: true });
+    } finally {
+      setIsGrantingPermission(false);
     }
   };
 
@@ -147,6 +202,30 @@ export default function OptionsPage() {
     <div className="flex flex-col space-y-2">
       <Logo />
       <span className="text-lg">Settings</span>
+      {grantIntent && (
+        <div className="flex flex-col gap-2 rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm dark:border-yellow-800 dark:bg-yellow-950">
+          <p>
+            Firefox can&apos;t show the permission prompt from the popup, so
+            finish granting it here to enable{" "}
+            {grantIntent === "always-on"
+              ? "always-on highlighting"
+              : "client-side crawling"}
+            .
+          </p>
+          {grantPermissionError && (
+            <p className="text-red-500">
+              Permission wasn&apos;t granted. You can try again below.
+            </p>
+          )}
+          <Button
+            onClick={onGrantPermission}
+            disabled={isGrantingPermission}
+            className="w-fit"
+          >
+            {isGrantingPermission ? <Spinner /> : "Grant permission"}
+          </Button>
+        </div>
+      )}
       <hr />
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-medium">Show count badge</span>
