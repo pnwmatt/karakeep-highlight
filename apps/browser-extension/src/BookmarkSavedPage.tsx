@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ArrowUpRightFromSquare, Trash } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { useDeleteBookmark } from "@karakeep/shared-react/hooks/bookmarks";
 
@@ -18,6 +18,10 @@ import { MessageType } from "./utils/type";
 export default function BookmarkSavedPage() {
   const { bookmarkId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const alreadyExists = Boolean(
+    (location.state as { alreadyExists?: boolean } | null)?.alreadyExists,
+  );
   const [error, setError] = useState("");
 
   const { mutate: deleteBookmark, isPending } = useDeleteBookmark({
@@ -52,7 +56,9 @@ export default function BookmarkSavedPage() {
     <div className="flex flex-col gap-2">
       {error && <p className="text-red-500">{error}</p>}
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xl">Hoarded!</p>
+        <p className="text-xl">
+          {alreadyExists ? "Already Hoarded!" : "Hoarded!"}
+        </p>
         <div className="flex gap-2">
           <Link
             className={cn(
